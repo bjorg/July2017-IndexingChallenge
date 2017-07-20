@@ -27,12 +27,13 @@ namespace TriggerFunction {
 
         //--- Fields ---
         private readonly AmazonS3Client _s3Client;
-        private readonly Uri _esDomain;
+        private readonly ElasticClient _esClient;
 
         //--- Constructors ---
         public Function() {
             _s3Client = new AmazonS3Client();
-            _esDomain = new Uri(System.Environment.GetEnvironmentVariable("es_domain"));
+            var settings = new ConnectionSettings(new Uri(System.Environment.GetEnvironmentVariable("es_domain")));
+            _esClient = new ElasticClient(settings);
         }
 
         //--- Methods ---
@@ -54,59 +55,47 @@ namespace TriggerFunction {
                 s3response.ResponseStream.CopyTo(memoryStream);
                 contents = Encoding.UTF8.GetString(memoryStream.ToArray());
             }
-            var lines = contents.Split('\n');
+            var lines = contents.Split('\n').ToArray();
 
             Log($"found {lines.Length:N0} rows");
-            var skipped = 0;
-            Parallel.ForEach(lines, line => {
-                var columns = line.Split('\t');
-                if(columns.Length < 15) {
-                    ++skipped;
-                }
-                try {
-                    Insert(new Hero {
-                        Id = TryParseInt(columns[0]),
-                        Name = columns[1],
-                        Identity = columns[3],
-                        Alignment = columns[4],
-                        EyeColor = columns[5],
-                        HairColor = columns[6],
-                        Sex = columns[7],
-                        Gsm = columns[9],
-                        Appearances = columns[10],
-                        FirstAppearance = columns[11],
-                        Year = TryParseInt(columns[12]),
-                        Location = new Hero.GeoLocation {
-                            Longitude = TryParseDouble(columns[13]),
-                            Latitude = TryParseDouble(columns[14])
-                        }
-                    });
-                } catch(Exception ex) {
-                    Log($"*** ERROR: {ex}");
-                    ++skipped;
-                }
-            });
-            Log($"inserted {lines.Length - skipped:N0} records; skipped {skipped:N0} rows");
+            var heroes = lines.Select(line => line.Split('\t'))
+                .Where(columns => columns.Length >= 15)
+                .Select(columns => {
+                    try {
+                        return new Hero {
+                            Id = int.Parse(columns[0]),
+                            Name = columns[1],
+                            Identity = columns[3],
+                            Alignment = columns[4],
+                            EyeColor = columns[5],
+                            HairColor = columns[6],
+                            Sex = columns[7],
+                            Gsm = columns[9],
+                            Appearances = columns[10],
+                            FirstAppearance = columns[11],
+                            Location = new Hero.GeoLocation {
+                                Longitude = double.Parse(columns[13]),
+                                Latitude = double.Parse(columns[14])
+                            }
+                        };
+                    } catch(Exception ex) {
+                        Log($"*** ERROR: {ex}\n    ROW: {string.Join(", ", columns)}");
+                        return null;
+                    }
+                })
+                .Where(hero => hero != null)
+                .ToArray();
 
-            int TryParseInt(string text) {
-                if(!int.TryParse(text, out int value)) {
-                    Log($"*** ERROR: not an int value: '{text}'");
-                }
-                return value;
+            // insert heroes in batches
+            foreach(var batch in heroes
+                .Select((x, i) => new { Index = i, Value = x })
+                .GroupBy(x => x.Index / 500)
+                .Select(x => x.Select(v => v.Value).ToList())
+                .ToList()
+            ) {
+                _esClient.IndexMany(batch, "heroes", "hero");
             }
-
-            double TryParseDouble(string text) {
-                if(!double.TryParse(text, out double value)) {
-                    Log($"*** ERROR: not a double value: '{text}'");
-                }
-                return value;
-            }
-        }
-
-        private void Insert(Hero hero) {
-            var settings = new ConnectionSettings(_esDomain);
-            var client = new ElasticClient(settings);
-            var status = client.Index(hero, i => i.Index("heroes").Type("hero"));
+            Log($"inserted {heroes.Length:N0} records; skipped {lines.Length - heroes.Length:N0} rows");
         }
 
         private void Log(string text) {
