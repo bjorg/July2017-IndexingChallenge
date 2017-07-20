@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.S3Events;
 using Amazon.S3;
+using Nest;
 using Newtonsoft.Json;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -103,7 +104,9 @@ namespace TriggerFunction {
         }
 
         private void Insert(Hero hero) {
-            // just do it!
+            var settings = new ConnectionSettings(_esDomain);
+            var client = new ElasticClient(settings);
+            var status = client.Index(hero);
         }
 
         private void Log(string text) {
