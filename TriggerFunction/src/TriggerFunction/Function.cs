@@ -48,6 +48,23 @@ namespace TriggerFunction {
             var lines = contents.Split('\n');
             foreach(var line in lines) {
                 var columns = line.Split('\t');
+                Insert(new Hero {
+                    Id = int.Parse(columns[0]),
+                    Name = columns[1],
+                    Identity = columns[3],
+                    Alignment = columns[4],
+                    EyeColor = columns[5],
+                    HairColor = columns[6],
+                    Sex = columns[7],
+                    Gsm = columns[8],
+                    Appearances = columns[9],
+                    FirstAppearance = columns[10],
+                    Year = int.Parse(columns[11]),
+                    Location = new Hero.GeoLocation {
+                        Longitude = double.Parse(columns[12]),
+                        Latitude = double.Parse(columns[13])
+                    }
+                });
             }
         }
 
