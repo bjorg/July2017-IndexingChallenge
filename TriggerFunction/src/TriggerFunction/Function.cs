@@ -58,7 +58,7 @@ namespace TriggerFunction {
 
             Log($"found {lines.Length:N0} rows");
             var skipped = 0;
-            foreach(var line in lines) {
+            Parallel.ForEach(lines, line => {
                 var columns = line.Split('\t');
                 if(columns.Length < 15) {
                     ++skipped;
@@ -85,7 +85,7 @@ namespace TriggerFunction {
                     Log($"*** ERROR: {ex}");
                     ++skipped;
                 }
-            }
+            });
             Log($"inserted {lines.Length - skipped:N0} records; skipped {skipped:N0} rows");
 
             int TryParseInt(string text) {
