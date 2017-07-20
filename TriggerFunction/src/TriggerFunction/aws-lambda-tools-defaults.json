@@ -9,7 +9,7 @@
   ],
 
   "profile":"lambdasharp",
-  "region" : "us-west-2",
+  "region" : "us-east-1",
   "configuration" : "Release",
   "framework" : "netcoreapp1.0",
   "function-name": "lambdasharp-indexer",

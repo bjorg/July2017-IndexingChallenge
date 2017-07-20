@@ -18,10 +18,10 @@ namespace TriggerFunction {
     public class Hero {
 
         public class GeoLocation {
-            
+
             [JsonProperty("lon")]
             public double Longitude { get; set; }
-            
+
             [JsonProperty("lat")]
             public double Latitude { get; set; }
         }
@@ -76,13 +76,18 @@ namespace TriggerFunction {
         private const string INDEX_NAME = "heroes";
         private const string TYPE_NAME = "hero";
 
-        //--- Class Fields ---
-        private static readonly Uri _esDomain = new Uri("https://TODO");
-        
+        //--- Fields ---
+        private readonly Uri _esDomain;
+
+        //--- Constructors ---
+        public Function() {
+            _esDomain = new Uri(System.Environment.GetEnvironmentVariable("es_domain"));
+        }
+
         //--- Methods ---
         public void FunctionHandler(Hero hero, ILambdaContext context) {
-            LambdaLogger.Log($"received hero: {hero.ToString()}");
-            
+            LambdaLogger.Log($"received hero: {hero}");
+
             //TODO: index to elastic search
         }
     }
