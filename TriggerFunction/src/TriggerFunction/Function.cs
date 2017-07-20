@@ -36,9 +36,14 @@ namespace TriggerFunction {
 
         //--- Methods ---
         public void FunctionHandler(S3Event e, ILambdaContext context) {
-            Log("received S3 event");
-            var bucket = e.Records[0].S3.Bucket.Name;
-            var key = e.Records[0].S3.Object.Key;
+            var record = e.Records[0];
+            Log($"received S3 event ({record.EventName})");
+            if(record.EventName != "ObjectCreated:Put") {
+                Log("skipping S3 event");
+                return;
+            }
+            var bucket = record.S3.Bucket.Name;
+            var key = record.S3.Object.Key;
 
             Log("fetching file from S3");
             string contents;
@@ -48,32 +53,53 @@ namespace TriggerFunction {
                 s3response.ResponseStream.CopyTo(memoryStream);
                 contents = Encoding.UTF8.GetString(memoryStream.ToArray());
             }
-
-            Log("parsing file");
             var lines = contents.Split('\n');
 
-            Log($"found {lines.Length:N} row");
+            Log($"found {lines.Length:N0} rows");
+            var skipped = 0;
             foreach(var line in lines) {
                 var columns = line.Split('\t');
-                Insert(new Hero {
-                    Id = int.Parse(columns[0]),
-                    Name = columns[1],
-                    Identity = columns[3],
-                    Alignment = columns[4],
-                    EyeColor = columns[5],
-                    HairColor = columns[6],
-                    Sex = columns[7],
-                    Gsm = columns[8],
-                    Appearances = columns[9],
-                    FirstAppearance = columns[10],
-                    Year = int.Parse(columns[11]),
-                    Location = new Hero.GeoLocation {
-                        Longitude = double.Parse(columns[12]),
-                        Latitude = double.Parse(columns[13])
-                    }
-                });
+                if(columns.Length < 15) {
+                    ++skipped;
+                }
+                try {
+                    Insert(new Hero {
+                        Id = TryParseInt(columns[0]),
+                        Name = columns[1],
+                        Identity = columns[3],
+                        Alignment = columns[4],
+                        EyeColor = columns[5],
+                        HairColor = columns[6],
+                        Sex = columns[7],
+                        Gsm = columns[9],
+                        Appearances = columns[10],
+                        FirstAppearance = columns[11],
+                        Year = TryParseInt(columns[12]),
+                        Location = new Hero.GeoLocation {
+                            Longitude = TryParseDouble(columns[13]),
+                            Latitude = TryParseDouble(columns[14])
+                        }
+                    });
+                } catch(Exception ex) {
+                    Log($"*** ERROR: {ex}");
+                    ++skipped;
+                }
             }
-            Log($"inserted {lines.Length:N} records");
+            Log($"inserted {lines.Length - skipped:N0} records; skipped {skipped:N0} rows");
+
+            int TryParseInt(string text) {
+                if(!int.TryParse(text, out int value)) {
+                    Log($"*** ERROR: not an int value: '{text}'");
+                }
+                return value;
+            }
+
+            double TryParseDouble(string text) {
+                if(!double.TryParse(text, out double value)) {
+                    Log($"*** ERROR: not a double value: '{text}'");
+                }
+                return value;
+            }
         }
 
         private void Insert(Hero hero) {
