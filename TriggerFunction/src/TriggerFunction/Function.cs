@@ -52,7 +52,13 @@ namespace TriggerFunction {
         }
 
         private void Insert(Hero hero) {
-            // just do it!
+            // just do it
+            var settings = new ConnectionSettings(_esDomain);
+            var client = new ElasticClient(settings);
+            var serializedHero = JsonConvert.SerializeObject(hero);
+            var status = client.Index<Put>(serializedhero);
+
         }
+
     }
 }
