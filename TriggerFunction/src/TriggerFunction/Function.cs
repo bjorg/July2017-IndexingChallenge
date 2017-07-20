@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Amazon.Lambda.Core;
+using Amazon.Lambda.S3Events;
+using Amazon.S3;
 using Newtonsoft.Json;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -85,8 +87,8 @@ namespace TriggerFunction {
         }
 
         //--- Methods ---
-        public void FunctionHandler(Hero hero, ILambdaContext context) {
-            LambdaLogger.Log($"received hero: {hero}");
+        public void FunctionHandler(S3Event evnt, ILambdaContext context) {
+            //LambdaLogger.Log($"received hero: {hero}");
 
             //TODO: index to elastic search
         }
