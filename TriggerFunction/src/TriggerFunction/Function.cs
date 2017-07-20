@@ -36,16 +36,23 @@ namespace TriggerFunction {
 
         //--- Methods ---
         public void FunctionHandler(S3Event e, ILambdaContext context) {
+            Log("received S3 event");
             var bucket = e.Records[0].S3.Bucket.Name;
             var key = e.Records[0].S3.Object.Key;
 
-            var s3response = _s3Client.GetObjectAsync(bucket, key).Result;
+            Log("fetching file from S3");
+            string contents;
+            using(var s3response = _s3Client.GetObjectAsync(bucket, key).Result) {
+                Log("loading file to memory");
+                var memoryStream = new MemoryStream();
+                s3response.ResponseStream.CopyTo(memoryStream);
+                contents = Encoding.UTF8.GetString(memoryStream.ToArray());
+            }
 
-            var memoryStream = new MemoryStream();
-            s3response.ResponseStream.CopyTo(memoryStream);
-            var contents = Encoding.UTF8.GetString(memoryStream.ToArray());
-
+            Log("parsing file");
             var lines = contents.Split('\n');
+
+            Log($"found {lines.Length:N} row");
             foreach(var line in lines) {
                 var columns = line.Split('\t');
                 Insert(new Hero {
@@ -66,10 +73,15 @@ namespace TriggerFunction {
                     }
                 });
             }
+            Log($"inserted {lines.Length:N} records");
         }
 
         private void Insert(Hero hero) {
             // just do it!
+        }
+
+        private void Log(string text) {
+            LambdaLogger.Log(text + "\n");
         }
     }
 }
