@@ -106,7 +106,7 @@ namespace TriggerFunction {
         private void Insert(Hero hero) {
             var settings = new ConnectionSettings(_esDomain);
             var client = new ElasticClient(settings);
-            var status = client.Index(hero);
+            var status = client.Index(hero, i => i.Index("heroes").Type("hero"));
         }
 
         private void Log(string text) {
