@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -17,61 +18,6 @@ using Newtonsoft.Json;
 namespace TriggerFunction {
 
     //--- Types ---
-    public class Hero {
-
-        public class GeoLocation {
-
-            [JsonProperty("lon")]
-            public double Longitude { get; set; }
-
-            [JsonProperty("lat")]
-            public double Latitude { get; set; }
-        }
-
-        [JsonProperty("id")]
-        public int Id { get; set; }
-
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
-        [JsonProperty("urlslug")]
-        public string UrlSlug { get; set; }
-
-        [JsonProperty("identity")]
-        public string Identity { get; set; }
-
-        [JsonProperty("alignment")]
-        public string Alignment { get; set; }
-
-        [JsonProperty("eye_color")]
-        public string EyeColor { get; set; }
-
-        [JsonProperty("hair_color")]
-        public string HairColor { get; set; }
-
-        [JsonProperty("sex")]
-        public string Sex { get; set; }
-
-        [JsonProperty("gsm")]
-        public string Gsm { get; set; }
-
-        [JsonProperty("appearances")]
-        public string Appearances { get; set; }
-
-        [JsonProperty("first_appearance")]
-        public string FirstAppearance { get; set; }
-
-        [JsonProperty("year")]
-        public int Year  { get; set; }
-
-        [JsonProperty("location")]
-        public GeoLocation Location { get; set; }
-
-        public override string ToString() {
-            return $"{Name} | {UrlSlug} | {Identity} | {Alignment} | {EyeColor} | {HairColor} | {Sex} | {Gsm} | {Appearances} | {FirstAppearance} | {Year} | {Location.Longitude} | {Location.Latitude}";
-        }
-    }
-
     public class Function {
 
         //--- Constants ---
@@ -79,18 +25,34 @@ namespace TriggerFunction {
         private const string TYPE_NAME = "hero";
 
         //--- Fields ---
+        private readonly AmazonS3Client _s3Client;
         private readonly Uri _esDomain;
 
         //--- Constructors ---
         public Function() {
+            _s3Client = new AmazonS3Client();
             _esDomain = new Uri(System.Environment.GetEnvironmentVariable("es_domain"));
         }
 
         //--- Methods ---
-        public void FunctionHandler(S3Event evnt, ILambdaContext context) {
-            //LambdaLogger.Log($"received hero: {hero}");
+        public void FunctionHandler(S3Event e, ILambdaContext context) {
+            var bucket = e.Records[0].S3.Bucket.Name;
+            var key = e.Records[0].S3.Object.Key;
 
-            //TODO: index to elastic search
+            var s3response = _s3Client.GetObjectAsync(bucket, key).Result;
+
+            var memoryStream = new MemoryStream();
+            s3response.ResponseStream.CopyTo(memoryStream);
+            var contents = Encoding.UTF8.GetString(memoryStream.ToArray());
+
+            var lines = contents.Split('\n');
+            foreach(var line in lines) {
+                var columns = line.Split('\t');
+            }
+        }
+
+        private void Insert(Hero hero) {
+            // just do it!
         }
     }
 }
